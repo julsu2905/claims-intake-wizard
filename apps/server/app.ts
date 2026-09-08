@@ -3,13 +3,17 @@ import { existsSync, mkdirSync } from "node:fs";
 import { readdir, stat, unlink } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
 import multer from "multer";
 import cors from "cors";
 import type { NextFunction, Request, Response } from "express";
 
 const app = express();
 const port = process.env.PORT ?? 3001;
-const uploadDirectory = "uploads/documents";
+const uploadRootDirectory =
+  process.env.UPLOAD_ROOT_DIRECTORY ??
+  (process.env.VERCEL ? join(tmpdir(), "uploads") : "uploads");
+const uploadDirectory = join(uploadRootDirectory, "documents");
 const maxFileSizeBytes = 10 * 1024 * 1024;
 const dayInMs = 24 * 60 * 60 * 1000;
 const draftDocumentRetentionMs =
@@ -50,6 +54,10 @@ function isAllowedFile(file: Express.Multer.File) {
 }
 
 async function cleanupOrphanDraftDocuments() {
+  if (!existsSync(uploadDirectory)) {
+    return;
+  }
+
   const now = Date.now();
   const entries = await readdir(uploadDirectory, { withFileTypes: true });
 
@@ -134,7 +142,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static("public"));
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(uploadRootDirectory));
 
 app.get("/api/health", (req, res) => {
   res.json({

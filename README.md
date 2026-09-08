@@ -86,6 +86,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 CORS_ORIGIN=http://localhost:3000
 DRAFT_DOCUMENT_RETENTION_DAYS=30
 DRAFT_DOCUMENT_CLEANUP_HOURS=24
+UPLOAD_ROOT_DIRECTORY=uploads
 ```
 
 ## Document Upload Flow
@@ -97,6 +98,8 @@ The server stores uploaded files locally in:
 ```text
 apps/server/uploads/documents
 ```
+
+On Vercel, the server stores temporary uploads under the runtime temp directory instead of the deployed source tree. `UPLOAD_ROOT_DIRECTORY` can be set to override the storage root for another runtime.
 
 Temporary uploads are cleaned up by a retention job. The frontend also asks the server to delete replaced or removed temporary documents when possible.
 
