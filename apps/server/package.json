@@ -1,0 +1,28 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "dist/app.js",
+  "scripts": {
+    "dev": "node --watch app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.3.0"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.2.0",
+    "@types/node": "26.4.1",
+    "eslint": "10.9.1",
+    "typescript": "7.0.2"
+  }
+}
