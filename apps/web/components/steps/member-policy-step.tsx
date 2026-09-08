@@ -10,13 +10,18 @@ import {
   type ClaimFor,
   type ClaimWizardDraft,
 } from "../../stores/claim-wizard-store";
+import { disableFutureDates } from "../../utils/date-validation";
+import { DatePickerField } from "../form/date-picker-field";
 
 interface MemberPolicyStepProps {
   form: FormInstance<ClaimWizardDraft>;
   onDraftChange: () => void;
 }
 
-export function MemberPolicyStep({ form, onDraftChange }: MemberPolicyStepProps) {
+export function MemberPolicyStep({
+  form,
+  onDraftChange,
+}: MemberPolicyStepProps) {
   const claimFor = Form.useWatch(["memberPolicy", "claimFor"], form);
   const values = Form.useWatch("memberPolicy", form) ?? primaryMemberPolicy;
   const isDependentClaim = claimFor === "dependent";
@@ -92,28 +97,29 @@ export function MemberPolicyStep({ form, onDraftChange }: MemberPolicyStepProps)
         </Form.Item>
       </div>
 
-      {isDependentClaim ? (
-        <Form.Item
-          className="mt-6"
-          label="Dependent"
-          name={["memberPolicy", "dependentId"]}
-          rules={[
-            {
-              required: true,
-              message: "Select the dependent receiving care.",
-            },
-          ]}
-        >
-          <Select
-            options={dependentOptions.map((dependent) => ({
-              label: `${dependent.memberName} - ${dependent.relationship}`,
-              value: dependent.id,
-            }))}
-            placeholder="Select dependent"
-            onChange={handleDependentChange}
-          />
-        </Form.Item>
-      ) : null}
+      {isDependentClaim && (
+        <div className="mt-6">
+          <Form.Item
+            label="Dependent"
+            name={["memberPolicy", "dependentId"]}
+            rules={[
+              {
+                required: true,
+                message: "Select the dependent receiving care.",
+              },
+            ]}
+          >
+            <Select
+              options={dependentOptions.map((dependent) => ({
+                label: `${dependent.memberName} - ${dependent.relationship}`,
+                value: dependent.id,
+              }))}
+              placeholder="Select dependent"
+              onChange={handleDependentChange}
+            />
+          </Form.Item>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Form.Item
@@ -140,8 +146,9 @@ export function MemberPolicyStep({ form, onDraftChange }: MemberPolicyStepProps)
           <Input placeholder="Member ID" />
         </Form.Item>
 
-        <Form.Item
+        <DatePickerField
           label="Date of birth"
+          disabledDate={disableFutureDates}
           name={["memberPolicy", "dateOfBirth"]}
           rules={[
             {
@@ -149,9 +156,7 @@ export function MemberPolicyStep({ form, onDraftChange }: MemberPolicyStepProps)
               message: "Enter the member date of birth.",
             },
           ]}
-        >
-          <Input type="date" />
-        </Form.Item>
+        />
       </div>
     </fieldset>
   );

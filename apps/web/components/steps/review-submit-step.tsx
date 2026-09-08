@@ -174,7 +174,7 @@ export function ReviewSubmitStep({ form, onEditStep }: ReviewSubmitStepProps) {
             label="Treatment date(s)"
             value={formatDateRange(values)}
           />
-          {values.claimType === "inpatient" ? (
+          {values.claimType === "inpatient" && (
             <>
               <SummaryItem
                 label="Admission reason"
@@ -189,7 +189,7 @@ export function ReviewSubmitStep({ form, onEditStep }: ReviewSubmitStepProps) {
                 }
               />
             </>
-          ) : null}
+          )}
         </SummarySection>
 
         <SummarySection title="Documents" step={3} onEditStep={onEditStep}>
@@ -204,7 +204,7 @@ export function ReviewSubmitStep({ form, onEditStep }: ReviewSubmitStepProps) {
                     <Tag
                       className="max-w-full py-1"
                       color="blue"
-                      key={document.id}
+                      key={"docs-" + document.id}
                     >
                       <span className="font-medium">
                         {documentLabels[documentType]}:
@@ -218,19 +218,19 @@ export function ReviewSubmitStep({ form, onEditStep }: ReviewSubmitStepProps) {
               )}
             </dd>
           </div>
-          {values.claimType === "dental" ? (
+          {values.claimType === "dental" && (
             <SummaryItem
               label="Major dental"
               value={values.documents?.isMajorDental ? "Yes" : "No"}
             />
-          ) : null}
+          )}
         </SummarySection>
       </div>
 
       <div className="mt-6 rounded-lg border border-primary-100 bg-primary-50 px-4 py-4">
         <Form.Item
           className="mb-0"
-          name={["review", "confirmedAccuracy"]}
+          name={"confirmedAccuracy"}
           rules={[
             {
               validator: async (_, value: boolean | undefined) => {

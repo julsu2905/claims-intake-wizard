@@ -47,10 +47,6 @@ const claimSteps: ClaimWizardStep[] = [
   },
 ];
 
-const initialDraft: ClaimWizardDraft = {
-  memberPolicy: primaryMemberPolicy,
-};
-
 type FieldNamePath = string | readonly string[];
 
 interface FormValidationError {
@@ -151,7 +147,6 @@ function getCurrentDraft(
   form: FormInstance<ClaimWizardDraft>,
 ): ClaimWizardDraft {
   return sanitizeClaimDraft({
-    ...initialDraft,
     ...form.getFieldsValue(true),
   });
 }
@@ -187,7 +182,6 @@ export default function Home() {
 
   useEffect(() => {
     form.setFieldsValue({
-      ...initialDraft,
       ...sanitizeClaimDraft(draft),
     });
   }, [draft, form]);
@@ -284,10 +278,7 @@ export default function Home() {
       <Form
         component={false}
         form={form}
-        initialValues={{
-          ...initialDraft,
-          ...draft,
-        }}
+        initialValues={draft}
         layout="vertical"
         requiredMark
       >

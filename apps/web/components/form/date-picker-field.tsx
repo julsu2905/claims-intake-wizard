@@ -1,7 +1,12 @@
 "use client";
 
 import dayjs, { type Dayjs } from "dayjs";
-import { DatePicker, Form, type DatePickerProps, type FormItemProps } from "antd";
+import {
+  DatePicker,
+  Form,
+  type DatePickerProps,
+  type FormItemProps,
+} from "antd";
 
 type DateValue = Dayjs | null;
 
@@ -11,6 +16,7 @@ interface DatePickerFieldProps {
   rules?: FormItemProps["rules"];
   placeholder?: string;
   pickerProps?: Omit<DatePickerProps, "format" | "value" | "onChange">;
+  disabledDate?: DatePickerProps["disabledDate"];
 }
 
 const dateFormat = "YYYY-MM-DD";
@@ -41,6 +47,7 @@ export function DatePickerField({
   rules,
   placeholder,
   pickerProps,
+  disabledDate,
 }: DatePickerFieldProps) {
   return (
     <Form.Item
@@ -54,6 +61,7 @@ export function DatePickerField({
     >
       <DatePicker
         className="w-full"
+        disabledDate={disabledDate}
         format={dateFormat}
         placeholder={placeholder}
         {...pickerProps}

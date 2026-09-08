@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
+  Button,
   Form,
+  Progress,
   Tag,
   Upload,
   type FormItemProps,
@@ -14,15 +16,9 @@ import {
   type ClaimDocumentType,
   type UploadedClaimDocument,
 } from "../../stores/claim-wizard-store";
-
-interface UploadApiResponse {
-  status: "success" | "error";
-  message?: string;
-  data?: UploadedClaimDocument;
-}
+import { uploadClaimDocument } from "../../lib/claim-documents-api";
 
 interface ClaimDocumentUploadProps {
-  apiBaseUrl: string;
   description: string;
   documentType: ClaimDocumentType;
   name: FormItemProps["name"];
@@ -45,6 +41,7 @@ const allowedMimeTypes = ["application/pdf", "image/jpeg", "image/png"];
 const acceptedFileTypes =
   ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
 const { Dragger } = Upload;
+type UploadableFile = File & { uid?: string };
 
 function formatFileSize(size: number) {
   return `${(size / 1024 / 1024).toFixed(2)} MB`;
@@ -62,17 +59,6 @@ function getFileValidationError(file: File) {
   return undefined;
 }
 
-function parseUploadResponse(responseText: string) {
-  try {
-    return JSON.parse(responseText) as UploadApiResponse;
-  } catch {
-    return {
-      status: "error",
-      message: "Unexpected upload response.",
-    } satisfies UploadApiResponse;
-  }
-}
-
 function getFileList(uploadedFile?: UploadedClaimDocument): UploadFile[] {
   if (!uploadedFile) {
     return [];
@@ -84,14 +70,31 @@ function getFileList(uploadedFile?: UploadedClaimDocument): UploadFile[] {
       name: uploadedFile.originalName,
       size: uploadedFile.size,
       status: "done",
+      percent: 100,
       type: uploadedFile.mimeType,
       url: uploadedFile.url,
     },
   ];
 }
 
+function getUploadFile(file: UploadableFile, percent: number): UploadFile {
+  return {
+    uid: file.uid ?? file.name,
+    name: file.name,
+    size: file.size,
+    status: "uploading",
+    percent,
+    type: file.type,
+  };
+}
+
+function isUploadChangeEvent(
+  event: unknown,
+): event is { file?: UploadFile & { response?: UploadedClaimDocument } } {
+  return typeof event === "object" && event !== null && "file" in event;
+}
+
 export function ClaimDocumentUpload({
-  apiBaseUrl,
   description,
   documentType,
   name,
@@ -110,6 +113,14 @@ export function ClaimDocumentUpload({
     setFileList(getFileList(uploadedFile));
   }, [uploadedFile]);
 
+  const activeFile = fileList[0];
+  const isUploading = activeFile?.status === "uploading";
+  const displayFile = uploadedFile ? getFileList(uploadedFile)[0] : activeFile;
+  const progressPercent =
+    typeof activeFile?.percent === "number"
+      ? Math.round(activeFile.percent)
+      : 0;
+
   const handleUpload: UploadProps["customRequest"] = (options) => {
     const { file, onError, onProgress, onSuccess } = options;
 
@@ -118,50 +129,45 @@ export function ClaimDocumentUpload({
       return;
     }
 
-    const request = new XMLHttpRequest();
-    const formData = new FormData();
+    const uploadFile = file as UploadableFile;
+    const abortController = new AbortController();
     const previousDocument = uploadedFile;
 
-    formData.append("file", file);
+    setFileList([getUploadFile(uploadFile, 0)]);
 
-    request.upload.onprogress = (event) => {
-      if (!event.lengthComputable) {
-        return;
-      }
-
-      onProgress?.({
-        percent: Math.round((event.loaded / event.total) * 100),
-      });
-    };
-
-    request.onload = () => {
-      const response = parseUploadResponse(request.responseText);
-
-      if (request.status >= 200 && request.status < 300 && response.data) {
+    void uploadClaimDocument({
+      documentType,
+      file: uploadFile,
+      signal: abortController.signal,
+      onUploadProgress: (nextPercent) => {
+        setFileList([getUploadFile(uploadFile, nextPercent)]);
+        onProgress?.({
+          percent: nextPercent,
+        });
+      },
+    })
+      .then((document) => {
         setErrorMessage(undefined);
-        onUploaded(documentType, response.data, previousDocument);
-        onSuccess?.(response);
-        return;
-      }
+        setFileList(getFileList(document));
+        onUploaded(documentType, document, previousDocument);
+        onSuccess?.(document);
+      })
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : "Upload failed. Try again.";
 
-      const error = new Error(
-        response.message ?? "Unable to upload this file.",
-      );
-      setErrorMessage(error.message);
-      onError?.(error);
-    };
-
-    request.onerror = () => {
-      const error = new Error("Upload failed. Try again.");
-      setErrorMessage(error.message);
-      onError?.(error);
-    };
-
-    request.open("POST", `${apiBaseUrl}/api/documents/${documentType}/upload`);
-    request.send(formData);
+        setErrorMessage(message);
+        setFileList([
+          {
+            ...getUploadFile(uploadFile, 0),
+            status: "error",
+          },
+        ]);
+        onError?.(new Error(message));
+      });
 
     return {
-      abort: () => request.abort(),
+      abort: () => abortController.abort(),
     };
   };
 
@@ -172,7 +178,7 @@ export function ClaimDocumentUpload({
         required ? "border-primary-100" : "border-sky-100",
       )}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-sm font-semibold text-slate-950">{title}</div>
@@ -181,25 +187,22 @@ export function ClaimDocumentUpload({
             </Tag>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-          {uploadedFile ? (
-            <p className="mt-3 truncate text-sm font-medium text-slate-800">
-              {uploadedFile.originalName}
-              <span className="ml-2 font-normal text-slate-500">
-                {formatFileSize(uploadedFile.size)}
-              </span>
-            </p>
-          ) : null}
-          {uploadedFile?.expiresAt ? (
-            <p className="mt-1 text-xs text-slate-500">
-              Temporary upload expires after{" "}
-              {new Date(uploadedFile.expiresAt).toLocaleDateString()}.
-            </p>
-          ) : null}
         </div>
 
-        <div className="w-full sm:w-80">
+        <div className="w-full">
           <Form.Item
             className="mb-0"
+            getValueFromEvent={(event: unknown) => {
+              if (!isUploadChangeEvent(event)) {
+                return uploadedFile;
+              }
+
+              if (event.file?.status === "removed") {
+                return undefined;
+              }
+
+              return event.file?.response ?? uploadedFile;
+            }}
             getValueProps={() => ({})}
             name={name}
             rules={[
@@ -225,9 +228,14 @@ export function ClaimDocumentUpload({
               customRequest={handleUpload}
               fileList={fileList}
               maxCount={1}
-              onChange={({ fileList: nextFileList }) =>
-                setFileList(nextFileList.slice(-1))
-              }
+              onChange={({ file, fileList: nextFileList }) => {
+                if (uploadedFile && file.status === "done") {
+                  setFileList(getFileList(uploadedFile));
+                  return;
+                }
+
+                setFileList(nextFileList.slice(-1));
+              }}
               onRemove={() => {
                 onRemoved(documentType, uploadedFile);
                 return true;
@@ -236,23 +244,73 @@ export function ClaimDocumentUpload({
                 showInfo: true,
                 strokeWidth: 4,
               }}
+              showUploadList={false}
             >
-              <div className="px-3 py-2">
-                <p className="text-sm font-medium text-slate-900">
-                  {uploadedFile ? "Replace document" : "Drop file here"}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  PDF, JPG, or PNG. Max 10MB.
-                </p>
+              <div className="px-3 py-3 text-left">
+                {displayFile ? (
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-900">
+                          {displayFile.name}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {displayFile.size
+                            ? formatFileSize(displayFile.size)
+                            : ""}
+                          {isUploading ? " - Uploading" : ""}
+                        </p>
+                      </div>
+                      {uploadedFile && !isUploading && (
+                        <Button
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onRemoved(documentType, uploadedFile);
+                            setFileList([]);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    {uploadedFile?.expiresAt && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Temporary upload expires after{" "}
+                        {new Date(uploadedFile.expiresAt).toLocaleDateString()}.
+                      </p>
+                    )}
+                    <Progress
+                      className="mt-3"
+                      percent={isUploading ? progressPercent : 100}
+                      size="small"
+                      status={
+                        displayFile.status === "error" ? "exception" : undefined
+                      }
+                    />
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      Drop another file here to replace it.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">
+                      Drop file here
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Or click to browse. PDF, JPG, or PNG. Max 10MB.
+                    </p>
+                  </div>
+                )}
               </div>
             </Dragger>
           </Form.Item>
         </div>
       </div>
 
-      {errorMessage ? (
+      {errorMessage && (
         <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
-      ) : null}
+      )}
     </div>
   );
 }

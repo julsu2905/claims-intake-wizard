@@ -74,7 +74,7 @@ export function ClaimWizardShell({
         },
       }}
     >
-      <div className="container mx-auto flex min-h-svh w-full items-center justify-center bg-white px-4 pt-5 pb-32 sm:px-6 sm:pt-8 lg:pb-28">
+      <div className="container mx-auto flex min-h-svh w-full items-center justify-center bg-white px-4 pt-5 pb-32 sm:px-6 sm:pt-8 lg:pb-24">
         <section className={clsx("flex w-full flex-col", className)}>
           <header className="flex flex-col gap-5 border-b border-sky-100 pb-6 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">

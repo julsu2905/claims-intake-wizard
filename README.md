@@ -1,158 +1,120 @@
-# Turborepo starter
+# Claims Intake Wizard
 
-This Turborepo starter is maintained by the Turborepo core team.
+A TypeScript Turborepo for a multi-step insurance claim intake flow. The project was built as an AI coding interview exercise with a focus on clean UI, shared form state, validation, document upload progress, and review-before-submit behavior.
 
-## Using this example
+## What It Does
 
-Run the following command:
+The web app guides a claimant through five steps:
 
-```sh
-npx create-turbo@latest
+1. Claim type selection: outpatient, inpatient, or dental.
+2. Member and policy information: pre-filled mock policy data, editable fields, and dependent selection.
+3. Diagnosis and treatment: diagnosis details, ICD-10 autocomplete, provider suggestions, and treatment dates.
+4. Document upload: required and optional documents based on claim type, file validation, temporary backend upload, and progress display.
+5. Review and submit: summary of all data, edit navigation, confirmation checkbox, and mock submission.
+
+## Tech Stack
+
+- Turborepo
+- Yarn workspaces
+- TypeScript
+- Next.js app router
+- React
+- TailwindCSS
+- Ant Design
+- Zustand with persistence
+- Axios for frontend API requests
+- Express for the upload API
+- Multer for local temporary document storage
+
+## Repository Structure
+
+```text
+apps/
+  server/        Express API for health checks and document uploads
+  web/           Next.js claim wizard frontend
+packages/
+  eslint-config/ Shared ESLint config
+  typescript-config/ Shared TypeScript config
 ```
 
-## What's inside?
+Important web folders:
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```text
+apps/web/app/          Next.js routes and global styles
+apps/web/components/   Wizard shell, step components, and reusable form controls
+apps/web/data/         Mock policy, diagnosis, and document requirement data
+apps/web/lib/          Centralized frontend API clients
+apps/web/stores/       Persisted wizard draft state
+apps/web/utils/        Form data and date utilities
 ```
 
-Without global `turbo`, use your package manager:
+## Local Development
+
+Install dependencies:
 
 ```sh
-cd my-turborepo
-npx turbo build
-yarn exec turbo build
-yarn exec turbo build
+yarn install
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Run both apps:
 
 ```sh
-turbo build --filter=docs
+yarn dev
 ```
 
-Without global `turbo`:
+Default local URLs:
+
+- Web: `http://localhost:3000`
+- Server: `http://localhost:3001`
+
+Run checks:
 
 ```sh
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-yarn exec turbo build --filter=docs
+yarn check-types
+yarn lint
+yarn build
 ```
 
-### Develop
+## Environment Variables
 
-To develop all apps and packages, run the following command:
+The app works with defaults in local development.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Optional variables:
 
 ```sh
-cd my-turborepo
-turbo dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+CORS_ORIGIN=http://localhost:3000
+DRAFT_DOCUMENT_RETENTION_DAYS=30
+DRAFT_DOCUMENT_CLEANUP_HOURS=24
 ```
 
-Without global `turbo`, use your package manager:
+## Document Upload Flow
 
-```sh
-cd my-turborepo
-npx turbo dev
-yarn exec turbo dev
-yarn exec turbo dev
+The frontend uploads files immediately during Step 4 so the user can see real upload progress. The successful API response metadata is stored in the shared Ant Design form state under `documents.files`.
+
+The server stores uploaded files locally in:
+
+```text
+apps/server/uploads/documents
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Temporary uploads are cleaned up by a retention job. The frontend also asks the server to delete replaced or removed temporary documents when possible.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Allowed files:
 
-```sh
-turbo dev --filter=web
-```
+- PDF
+- JPG/JPEG
+- PNG
+- Max 10MB per file
 
-Without global `turbo`:
+## Form State Notes
 
-```sh
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-yarn exec turbo dev --filter=web
-```
+The wizard uses one Ant Design form across all steps. Step panels stay mounted and are hidden instead of conditionally unmounted, so form fields remain registered for validation and review.
 
-### Remote Caching
+Zustand stores the persisted draft and current step, but the live form remains the source of truth while the user is editing. Draft persistence happens on navigation, upload changes, and submit to avoid input lag.
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Hidden or no-longer-applicable fields are sanitized before persistence and submission, such as inpatient-only treatment fields or document types from a previous claim type.
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+## Date Handling
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-yarn exec turbo login
-yarn exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-yarn exec turbo link
-yarn exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Date fields use a reusable Ant Design `DatePicker` wrapper. The form stores dates as `YYYY-MM-DD` strings while the picker receives Dayjs values. Date-of-birth disables future date cells with AntD's `disabledDate` prop.

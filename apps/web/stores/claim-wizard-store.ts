@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { primaryMemberPolicy } from "../data/mock-policy";
 
 export type ClaimType = "outpatient" | "inpatient" | "dental";
 
@@ -74,7 +75,7 @@ export const useClaimWizardStore = create<ClaimWizardStore>()(
   persist(
     (set) => ({
       currentStep: 0,
-      draft: {},
+      draft: { memberPolicy: primaryMemberPolicy },
       setCurrentStep: (step) => set({ currentStep: step }),
       setDraft: (draft) => set({ draft }),
     }),

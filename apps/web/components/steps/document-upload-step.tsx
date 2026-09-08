@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { Checkbox, Form, Tag, type FormInstance } from "antd";
 import { ClaimDocumentUpload } from "../form/claim-document-upload";
 import { getDocumentRequirements } from "../../data/claim-document-requirements";
+import { deleteClaimDocument } from "../../lib/claim-documents-api";
 import {
   type ClaimDocumentType,
   type ClaimType,
@@ -16,20 +17,15 @@ interface DocumentUploadStepProps {
   onDraftChange: () => void;
 }
 
-const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
-
 const labelsByClaimType: Record<ClaimType, string> = {
   outpatient: "Outpatient",
   inpatient: "Inpatient",
   dental: "Dental",
 };
 
-async function deleteTemporaryDocument(fileName: string) {
+async function deleteTemporaryDocument(document: UploadedClaimDocument) {
   try {
-    await fetch(`${apiBaseUrl}/api/documents/${encodeURIComponent(fileName)}`, {
-      method: "DELETE",
-    });
+    await deleteClaimDocument(document);
   } catch {
     // Cleanup is best-effort. The server retention job handles abandoned files.
   }
@@ -68,7 +64,7 @@ export function DocumentUploadStep({
       onDraftChange();
 
       if (previousDocument) {
-        deleteTemporaryDocument(previousDocument.fileName);
+        deleteTemporaryDocument(previousDocument);
       }
     },
     [form, onDraftChange],
@@ -80,7 +76,7 @@ export function DocumentUploadStep({
       onDraftChange();
 
       if (uploadedFile) {
-        deleteTemporaryDocument(uploadedFile.fileName);
+        deleteTemporaryDocument(uploadedFile);
       }
     },
     [form, onDraftChange],
@@ -127,7 +123,7 @@ export function DocumentUploadStep({
             </Tag>
           </div>
 
-          {claimType === "dental" ? (
+          {claimType === "dental" && (
             <Form.Item
               className="mt-4 mb-0"
               name={["documents", "isMajorDental"]}
@@ -137,7 +133,7 @@ export function DocumentUploadStep({
                 This is major dental treatment
               </Checkbox>
             </Form.Item>
-          ) : null}
+          )}
         </div>
       ) : (
         <div className="mt-6 rounded-lg border border-sky-100 bg-slate-50 px-4 py-4 text-sm text-slate-600">
@@ -152,7 +148,6 @@ export function DocumentUploadStep({
 
           return (
             <ClaimDocumentUpload
-              apiBaseUrl={apiBaseUrl}
               description={requirement.description}
               documentType={requirement.type}
               key={requirement.type}

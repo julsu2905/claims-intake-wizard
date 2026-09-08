@@ -4,6 +4,7 @@ import { readdir, stat, unlink } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import multer from "multer";
+import cors from "cors";
 import type { NextFunction, Request, Response } from "express";
 
 const app = express();
@@ -31,6 +32,10 @@ const documentTypes = [
 ] as const;
 
 type DocumentType = (typeof documentTypes)[number];
+
+interface DeleteDocumentRequestBody {
+  fileName?: string;
+}
 
 function isDocumentType(value: string | undefined): value is DocumentType {
   return documentTypes.some((documentType) => documentType === value);
@@ -118,21 +123,12 @@ const upload = multer({
   },
 });
 
-app.use((req, res, next) => {
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    process.env.WEB_ORIGIN ?? "http://localhost:3000",
-  );
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  optionsSuccessStatus: 204,
+};
 
-  if (req.method === "OPTIONS") {
-    res.sendStatus(204);
-    return;
-  }
-
-  next();
-});
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -199,14 +195,15 @@ app.post(
   },
 );
 
-app.delete("/api/documents/:fileName", async (req, res) => {
-  const rawFileName = req.params.fileName;
-  const fileName = Array.isArray(rawFileName) ? undefined : rawFileName;
+app.delete("/api/documents/:documentId", async (req, res) => {
+  const rawDocumentId = req.params.documentId;
+  const documentId = Array.isArray(rawDocumentId) ? undefined : rawDocumentId;
+  const { fileName } = req.body as DeleteDocumentRequestBody;
 
-  if (!fileName) {
+  if (!documentId || !fileName) {
     res.status(400).json({
       status: "error",
-      message: "File name is required.",
+      message: "Document id and file name are required.",
     });
     return;
   }
@@ -216,6 +213,7 @@ app.delete("/api/documents/:fileName", async (req, res) => {
   res.json({
     status: "success",
     data: {
+      documentId,
       deleted,
     },
   });
