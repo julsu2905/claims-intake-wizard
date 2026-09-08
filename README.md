@@ -1,6 +1,7 @@
 # Claims Intake Wizard
 
 A TypeScript Turborepo for a multi-step insurance claim intake flow. The project was built as an AI coding interview exercise with a focus on clean UI, shared form state, validation, document upload progress, and review-before-submit behavior.
+Public URL for demo: https://claims-intake-wizard-web.vercel.app
 
 ## What It Does
 
@@ -83,7 +84,7 @@ Optional variables:
 
 ```sh
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000,https://claims-intake-wizard.vercel.app
 DRAFT_DOCUMENT_RETENTION_DAYS=30
 DRAFT_DOCUMENT_CLEANUP_HOURS=24
 UPLOAD_ROOT_DIRECTORY=uploads
