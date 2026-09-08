@@ -2,7 +2,7 @@
   "name": "server",
   "version": "1.0.0",
   "type": "module",
-  "private": false,
+  "private": true,
   "main": "dist/app.js",
   "scripts": {
     "dev": "node --watch app.ts",
