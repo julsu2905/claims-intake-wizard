@@ -64,18 +64,32 @@ export interface ClaimWizardDraft {
   review?: ClaimReviewData;
 }
 
+export function getInitialClaimWizardDraft(): ClaimWizardDraft {
+  return {
+    memberPolicy: {
+      ...primaryMemberPolicy,
+    },
+  };
+}
+
 interface ClaimWizardStore {
   currentStep: number;
   draft: ClaimWizardDraft;
   setCurrentStep: (step: number) => void;
   setDraft: (draft: ClaimWizardDraft) => void;
+  reset: () => void;
 }
 
 export const useClaimWizardStore = create<ClaimWizardStore>()(
   persist(
     (set) => ({
       currentStep: 0,
-      draft: { memberPolicy: primaryMemberPolicy },
+      draft: getInitialClaimWizardDraft(),
+      reset: () =>
+        set({
+          currentStep: 0,
+          draft: getInitialClaimWizardDraft(),
+        }),
       setCurrentStep: (step) => set({ currentStep: step }),
       setDraft: (draft) => set({ draft }),
     }),

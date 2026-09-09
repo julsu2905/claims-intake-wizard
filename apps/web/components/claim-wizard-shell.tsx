@@ -22,6 +22,7 @@ interface ClaimWizardShellProps {
   isNextLoading?: boolean;
   onBack?: () => void;
   onNext?: () => void | Promise<void>;
+  onReset?: () => void;
   onStepChange?: (step: number) => void;
 }
 
@@ -37,6 +38,7 @@ export function ClaimWizardShell({
   isNextLoading = false,
   onBack,
   onNext,
+  onReset,
   onStepChange,
 }: ClaimWizardShellProps) {
   const activeStep = steps[currentStep];
@@ -148,15 +150,27 @@ export function ClaimWizardShell({
           >
             {backLabel}
           </Button>
-          <Button
-            className="h-11 w-full sm:w-auto sm:min-w-32"
-            disabled={!canGoNext}
-            loading={isNextLoading}
-            type="primary"
-            onClick={onNext}
-          >
-            {nextLabel}
-          </Button>
+          <div className="flex w-full flex-col-reverse gap-3 sm:w-auto sm:flex-row">
+            {onReset && (
+              <Button
+                className="h-11 w-full sm:w-auto sm:min-w-28"
+                onClick={onReset}
+                danger
+                variant="outlined"
+              >
+                Reset form
+              </Button>
+            )}
+            <Button
+              className="h-11 w-full sm:w-auto sm:min-w-32"
+              disabled={!canGoNext}
+              loading={isNextLoading}
+              type="primary"
+              onClick={onNext}
+            >
+              {nextLabel}
+            </Button>
+          </div>
         </div>
       </footer>
     </ConfigProvider>

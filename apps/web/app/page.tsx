@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Form, notification, type FormInstance } from "antd";
+import { Form, Modal, notification, type FormInstance } from "antd";
 import {
   ClaimWizardShell,
   type ClaimWizardStep,
@@ -12,12 +12,14 @@ import { DocumentUploadStep } from "../components/steps/document-upload-step";
 import { MemberPolicyStep } from "../components/steps/member-policy-step";
 import { ReviewSubmitStep } from "../components/steps/review-submit-step";
 import { getRequiredDocumentTypes } from "../data/claim-document-requirements";
-import { primaryMemberPolicy } from "../data/mock-policy";
 import {
+  getInitialClaimWizardDraft,
   type ClaimWizardDraft,
+  type UploadedClaimDocument,
   useClaimWizardStore,
 } from "../stores/claim-wizard-store";
 import { sanitizeClaimDraft } from "../utils/claim-draft";
+import { deleteClaimDocument } from "../lib/claim-documents-api";
 
 const claimSteps: ClaimWizardStep[] = [
   {
@@ -151,6 +153,12 @@ function getCurrentDraft(
   });
 }
 
+function getUploadedDocuments(draft: ClaimWizardDraft) {
+  return Object.values(draft.documents?.files ?? {}).filter(
+    (document): document is UploadedClaimDocument => Boolean(document),
+  );
+}
+
 function StepPanel({
   children,
   isActive,
@@ -168,12 +176,14 @@ function StepPanel({
 export default function Home() {
   const [form] = Form.useForm<ClaimWizardDraft>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalApi, modalContextHolder] = Modal.useModal();
   const [notificationApi, notificationContextHolder] =
     notification.useNotification();
   const currentStep = useClaimWizardStore((state) => state.currentStep);
   const draft = useClaimWizardStore((state) => state.draft);
   const setCurrentStep = useClaimWizardStore((state) => state.setCurrentStep);
   const setDraft = useClaimWizardStore((state) => state.setDraft);
+  const resetDraft = useClaimWizardStore((state) => state.reset);
   const claimType = Form.useWatch("claimType", form) ?? draft.claimType;
   const isMajorDental = Boolean(
     Form.useWatch(["documents", "isMajorDental"], form) ??
@@ -192,6 +202,53 @@ export default function Home() {
 
   const persistFormDraft = () => {
     setDraft(getCurrentDraft(form));
+  };
+
+  const resetFormDraft = () => {
+    const currentDraft = getCurrentDraft(form);
+    const initialDraft = getInitialClaimWizardDraft();
+    const fieldsToClear = getSubmissionFieldNames(
+      currentDraft.claimType,
+      Boolean(currentDraft.documents?.isMajorDental),
+    );
+    const uploadedDocuments = getUploadedDocuments(currentDraft);
+
+    form.setFieldsValue({
+      claimType: undefined,
+      diagnosisTreatment: undefined,
+      documents: undefined,
+      memberPolicy: initialDraft.memberPolicy,
+      review: undefined,
+    });
+    const fieldsWithoutErrors = fieldsToClear.map((name) => ({
+      errors: [],
+      name,
+    })) as Parameters<typeof form.setFields>[0];
+
+    form.setFields(fieldsWithoutErrors);
+    resetDraft();
+    Promise.allSettled(
+      uploadedDocuments.map((document) => deleteClaimDocument(document)),
+    );
+    notificationApi.info({
+      title: "Form reset",
+      description: "The claim draft has been restored to the initial state.",
+      placement: "topRight",
+    });
+  };
+
+  const requestResetConfirmation = () => {
+    modalApi.confirm({
+      title: "Reset claim form?",
+      content:
+        "This will clear the current claim draft and remove temporary uploaded documents.",
+      okText: "Reset form",
+      okButtonProps: {
+        danger: true,
+      },
+      cancelText: "Cancel",
+      onOk: resetFormDraft,
+    });
   };
 
   const showValidationError = (error: unknown) => {
@@ -252,9 +309,6 @@ export default function Home() {
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      await form.validateFields(
-        getSubmissionFieldNames(claimType, isMajorDental),
-      );
       const submission = getCurrentDraft(form);
 
       console.log("Mock claim submission", submission);
@@ -272,9 +326,30 @@ export default function Home() {
     }
   };
 
+  const requestSubmitConfirmation = async () => {
+    try {
+      await form.validateFields(
+        getSubmissionFieldNames(claimType, isMajorDental),
+      );
+    } catch (error) {
+      showValidationError(error);
+      return;
+    }
+
+    modalApi.confirm({
+      title: "Submit claim?",
+      content:
+        "Please confirm you are ready to submit this claim for processing.",
+      okText: "Submit claim",
+      cancelText: "Cancel",
+      onOk: handleSubmit,
+    });
+  };
+
   return (
     <>
       {notificationContextHolder}
+      {modalContextHolder}
       <Form
         component={false}
         form={form}
@@ -291,7 +366,7 @@ export default function Home() {
           }}
           onNext={() =>
             currentStep === claimSteps.length - 1
-              ? handleSubmit()
+              ? requestSubmitConfirmation()
               : goForward(currentStep + 1)
           }
           onStepChange={handleStepChange}
@@ -300,6 +375,7 @@ export default function Home() {
           }
           canGoNext={Boolean(claimType)}
           isNextLoading={isSubmitting}
+          onReset={requestResetConfirmation}
         >
           <StepPanel isActive={currentStep === 0}>
             <ClaimTypeStep form={form} onDraftChange={persistFormDraft} />
